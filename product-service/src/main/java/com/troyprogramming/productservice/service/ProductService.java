@@ -31,7 +31,7 @@ public class ProductService {
 
     public List<ProductResponse> getAllProduct() {
         List<Product> products = productRepository.findAll();
-
+        log.info("Product is saved {}", products);
         return products.stream().map(this::mapToProductResponse).toList();
 
     }
