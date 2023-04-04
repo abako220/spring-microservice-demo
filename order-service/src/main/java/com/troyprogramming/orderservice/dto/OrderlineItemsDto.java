@@ -1,6 +1,5 @@
-package com.troyprogramming.orderservice.model;
+package com.troyprogramming.orderservice.dto;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,18 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-@Entity
-@Table(name = "t_order_line_items_")
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
-public class OrderLineItems {
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+public class OrderlineItemsDto {
+
     private Long id;
     private String skuCode;
     private BigDecimal price;
     private Integer quantity;
-
 }
