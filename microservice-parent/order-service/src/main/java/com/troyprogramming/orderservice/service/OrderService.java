@@ -44,10 +44,14 @@ public class OrderService {
                             .bodyToMono(InventoryResponse[].class)
                                 .block();
 
+        if(Objects.nonNull(inventoryResponses)
+                && (inventoryResponses.length == 0 )
+                || (inventoryResponses.length < skuCodes.size())) {
+            throw new IllegalArgumentException("One or more of the skuCodes provided is invalid, please check and try again " + skuCodes);
+        }
         boolean allProductsInStock = Arrays.stream(inventoryResponses).allMatch(inventoryResponse -> inventoryResponse.isInStock());
-
         if(allProductsInStock) {
-           orderRepository.save(order);
+            orderRepository.save(order);
         }
         else {
             throw new IllegalArgumentException("product is not in stock. Please try again later!");
