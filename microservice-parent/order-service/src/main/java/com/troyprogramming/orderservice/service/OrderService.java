@@ -1,9 +1,7 @@
 package com.troyprogramming.orderservice.service;
 
-import com.troyprogramming.orderservice.dto.OrderRequest;
-import com.troyprogramming.orderservice.dto.OrderResponse;
-import com.troyprogramming.orderservice.dto.OrderResponseList;
-import com.troyprogramming.orderservice.dto.OrderlineItemsDto;
+import com.troyprogramming.orderservice.config.WebClientConfig;
+import com.troyprogramming.orderservice.dto.*;
 import com.troyprogramming.orderservice.model.Order;
 import com.troyprogramming.orderservice.model.OrderLineItems;
 import com.troyprogramming.orderservice.repository.OrderLineItemRepository;
@@ -11,9 +9,11 @@ import com.troyprogramming.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -24,13 +24,34 @@ public class OrderService {
 
     private final OrderLineItemRepository orderLineItemRepository;
 
+    private final WebClient webClient ;
+
     public void placeOrder(OrderRequest orderRequest) {
         Order order = Order.builder()
                 .orderNumber(UUID.randomUUID().toString())
                 .build();
         List<OrderLineItems> orderLineItems = orderRequest.getOrderlineItemsDtos().stream().map(this::mapToDto).toList();
         order.setOrderLineItemsList(orderLineItems);
-        orderRepository.save(order);
+
+        LinkedList skuCodes = order.getOrderLineItemsList()
+                .stream()
+                .map(OrderLineItems::getSkuCode)
+                .collect(Collectors.toCollection(LinkedList::new));
+        //call inventory Service to check if product is in stock, place order if product is in stock.
+        InventoryResponse [] inventoryResponses = webClient.get().
+                uri("http://localhost:8082/api/v1/inventory", uriBuilder -> uriBuilder.queryParam("sku-code", skuCodes).build())
+                        .retrieve()
+                            .bodyToMono(InventoryResponse[].class)
+                                .block();
+
+        boolean allProductsInStock = Arrays.stream(inventoryResponses).allMatch(inventoryResponse -> inventoryResponse.isInStock());
+
+        if(allProductsInStock) {
+           orderRepository.save(order);
+        }
+        else {
+            throw new IllegalArgumentException("product is not in stock. Please try again later!");
+        }
 
     }
 
