@@ -44,9 +44,10 @@ public class OrderService {
                             .bodyToMono(InventoryResponse[].class)
                                 .block();
 
-        if(Objects.nonNull(inventoryResponses)
-                && (inventoryResponses.length == 0 )
-                || (inventoryResponses.length < skuCodes.size())) {
+        if (Objects.isNull(inventoryResponses)
+                || (inventoryResponses.length == 0)) {
+            throw new IllegalArgumentException("skuCodes provided is invalid, please check and try again " + skuCodes);
+        } else if (inventoryResponses.length < skuCodes.size()) {
             throw new IllegalArgumentException("One or more of the skuCodes provided is invalid, please check and try again " + skuCodes);
         }
         boolean allProductsInStock = Arrays.stream(inventoryResponses).allMatch(inventoryResponse -> inventoryResponse.isInStock());
