@@ -24,7 +24,7 @@ public class OrderService {
 
     private final OrderLineItemRepository orderLineItemRepository;
 
-    private final WebClient webClient ;
+    private final WebClient.Builder webClientBuilder ;
 
     public void placeOrder(OrderRequest orderRequest) {
         Order order = Order.builder()
@@ -38,8 +38,8 @@ public class OrderService {
                 .map(OrderLineItems::getSkuCode)
                 .collect(Collectors.toCollection(LinkedList::new));
         //call inventory Service to check if product is in stock, place order if product is in stock.
-        InventoryResponse [] inventoryResponses = webClient.get().
-                uri("http://localhost:8082/api/v1/inventory", uriBuilder -> uriBuilder.queryParam("sku-code", skuCodes).build())
+        InventoryResponse [] inventoryResponses = webClientBuilder.build().get().
+                uri("http://inventory-service/api/v1/inventory", uriBuilder -> uriBuilder.queryParam("sku-code", skuCodes).build())
                         .retrieve()
                             .bodyToMono(InventoryResponse[].class)
                                 .block();
