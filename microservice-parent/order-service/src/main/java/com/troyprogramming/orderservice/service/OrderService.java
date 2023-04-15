@@ -52,7 +52,7 @@ public class OrderService {
         }
         boolean allProductsInStock = Arrays.stream(inventoryResponses).allMatch(inventoryResponse -> inventoryResponse.isInStock());
         if(allProductsInStock) {
-            orderRepository.save(order);
+            //orderRepository.save(order);
         }
         else {
             throw new IllegalArgumentException("product is not in stock. Please try again later!");

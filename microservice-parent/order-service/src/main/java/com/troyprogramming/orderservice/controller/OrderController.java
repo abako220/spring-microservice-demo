@@ -4,6 +4,7 @@ import com.troyprogramming.orderservice.dto.OrderRequest;
 import com.troyprogramming.orderservice.dto.OrderResponse;
 import com.troyprogramming.orderservice.dto.OrderlineItemsDto;
 import com.troyprogramming.orderservice.service.OrderService;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -22,10 +23,15 @@ public class OrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @CircuitBreaker(name = "inventory", fallbackMethod =  "fallbackMethod") //because,before placing order, order service lookup to inventory Ms
     public String placeOrder(@RequestBody OrderRequest orderRequest) {
         orderService.placeOrder(orderRequest);
         log.info("Order successfully created {}", orderRequest);
         return "Order successfully placed";
+    }
+
+    public String fallbackMethod(@RequestBody OrderRequest orderRequest, RuntimeException runtimeException) {
+         return "Service is not available at the moment. Please try again later!";
     }
 
     @GetMapping
