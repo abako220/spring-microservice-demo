@@ -5,12 +5,14 @@ import com.troyprogramming.orderservice.dto.OrderResponse;
 import com.troyprogramming.orderservice.dto.OrderlineItemsDto;
 import com.troyprogramming.orderservice.service.OrderService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,14 +26,17 @@ public class OrderController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @CircuitBreaker(name = "inventory", fallbackMethod =  "fallbackMethod") //because,before placing order, order service lookup to inventory Ms
-    public String placeOrder(@RequestBody OrderRequest orderRequest) {
-        orderService.placeOrder(orderRequest);
-        log.info("Order successfully created {}", orderRequest);
-        return "Order successfully placed";
+    @TimeLimiter(name = "inventory")
+    public CompletableFuture<String> placeOrder(@RequestBody OrderRequest orderRequest) {
+        log.info("Order Request created {}", orderRequest);
+        String  response = orderService.placeOrder(orderRequest);
+        log.info("Order successfully created {}",
+                response);
+        return CompletableFuture.supplyAsync(()->response);
     }
 
-    public String fallbackMethod(@RequestBody OrderRequest orderRequest, RuntimeException runtimeException) {
-         return "Service is not available at the moment. Please try again later!";
+    public CompletableFuture<String>  fallbackMethod(@RequestBody OrderRequest orderRequest, RuntimeException runtimeException) {
+         return CompletableFuture.supplyAsync(()-> "Service is not available at the moment. Please try again later!");
     }
 
     @GetMapping

@@ -19,7 +19,7 @@ public class InventoryController
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public LinkedList<InventoryResponse> isInStock(@RequestParam(name = "sku-code") LinkedList<String> skuCode) {
+    public LinkedList<InventoryResponse> isInStock(@RequestParam(name = "sku-code") LinkedList<String> skuCode) throws InterruptedException {
        return inventoryService.isInStock(skuCode);
     }
 }
