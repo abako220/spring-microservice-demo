@@ -4,12 +4,15 @@ import brave.Span;
 import brave.Tracer;
 import com.troyprogramming.orderservice.config.WebClientConfig;
 import com.troyprogramming.orderservice.dto.*;
+import com.troyprogramming.orderservice.event.OrderPlacedEvent;
 import com.troyprogramming.orderservice.model.Order;
 import com.troyprogramming.orderservice.model.OrderLineItems;
 import com.troyprogramming.orderservice.repository.OrderLineItemRepository;
 import com.troyprogramming.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -31,6 +34,11 @@ public class OrderService {
     private final WebClient.Builder webClientBuilder ;
 
     private final brave.Tracer tracer;
+
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
+
+    @Value("${notificationTopic}")
+    private final String kafKaDefaultTopic;
 
     public String placeOrder(OrderRequest orderRequest) {
         Order order = Order.builder()
@@ -65,6 +73,7 @@ public class OrderService {
             boolean allProductsInStock = Arrays.stream(inventoryResponses).allMatch(inventoryResponse -> inventoryResponse.isInStock());
             if(allProductsInStock) {
                 //orderRepository.save(order);
+                kafkaTemplate.send(kafKaDefaultTopic, new OrderPlacedEvent(order.getOrderNumber()));
                 return "Order successfully placed";
             }
             else {
