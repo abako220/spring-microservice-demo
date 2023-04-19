@@ -15,7 +15,7 @@ public class NotificationServiceApplication {
 
 
     @KafkaListener(topics = "notificationTopic")
-    public void handleNotification(OrderPlaceEvent orderPlaceEvent) {
+    public void handleNotification(OrderPlacedEvent orderPlaceEvent) {
         // send out email notification
 
         log.info("Received Notification for order - {}", orderPlaceEvent.getOrderNumber());

@@ -12,6 +12,7 @@ import com.troyprogramming.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,8 +38,8 @@ public class OrderService {
 
     private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
-    @Value("${notificationTopic}")
-    private final String kafKaDefaultTopic;
+    @Value("${spring.kafka.template.default-topic}")
+    private String kafKaDefaultTopic;
 
     public String placeOrder(OrderRequest orderRequest) {
         Order order = Order.builder()
