@@ -1,5 +1,7 @@
 package com.troyprogramming.orderservice.service;
 
+import brave.Span;
+import brave.Tracer;
 import com.troyprogramming.orderservice.config.WebClientConfig;
 import com.troyprogramming.orderservice.dto.*;
 import com.troyprogramming.orderservice.model.Order;
@@ -7,6 +9,7 @@ import com.troyprogramming.orderservice.model.OrderLineItems;
 import com.troyprogramming.orderservice.repository.OrderLineItemRepository;
 import com.troyprogramming.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -18,6 +21,7 @@ import java.util.stream.Stream;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -25,6 +29,8 @@ public class OrderService {
     private final OrderLineItemRepository orderLineItemRepository;
 
     private final WebClient.Builder webClientBuilder ;
+
+    private final brave.Tracer tracer;
 
     public String placeOrder(OrderRequest orderRequest) {
         Order order = Order.builder()
@@ -37,27 +43,37 @@ public class OrderService {
                 .stream()
                 .map(OrderLineItems::getSkuCode)
                 .collect(Collectors.toCollection(LinkedList::new));
-        //call inventory Service to check if product is in stock, place order if product is in stock.
-        InventoryResponse [] inventoryResponses = webClientBuilder.build().get().
-                uri("http://inventory-service/api/v1/inventory", uriBuilder -> uriBuilder.queryParam("sku-code", skuCodes).build())
-                        .retrieve()
-                            .bodyToMono(InventoryResponse[].class)
-                                .block();
 
-        if (Objects.isNull(inventoryResponses)
-                || (inventoryResponses.length == 0)) {
-            throw new IllegalArgumentException("skuCodes provided is invalid, please check and try again " + skuCodes);
-        } else if (inventoryResponses.length < skuCodes.size()) {
-            throw new IllegalArgumentException("One or more of the skuCodes provided is invalid, please check and try again " + skuCodes);
+        log.info("calling inventory service");
+        Span inventoryServiceLookup = tracer.nextSpan().name("inventoryServiceLookup");
+        try(Tracer.SpanInScope spanInScope = tracer.withSpanInScope(inventoryServiceLookup.start())) {
+            InventoryResponse [] inventoryResponses = webClientBuilder.build().get().
+                    uri("http://inventory-service/api/v1/inventory", uriBuilder -> uriBuilder.queryParam("sku-code", skuCodes).build())
+                    .retrieve()
+                    .bodyToMono(InventoryResponse[].class)
+                    .block();
+
+            if (Objects.isNull(inventoryResponses)
+                    || (inventoryResponses.length == 0)) {
+                throw new IllegalArgumentException("skuCodes provided is invalid, please check and try again " + skuCodes);
+            } else if (inventoryResponses.length < skuCodes.size()) {
+                throw new IllegalArgumentException("One or more of the skuCodes provided is invalid, please check and try again " + skuCodes);
+            }
+
+            //call inventory Service to check if product is in stock, place order if product is in stock.
+
+            boolean allProductsInStock = Arrays.stream(inventoryResponses).allMatch(inventoryResponse -> inventoryResponse.isInStock());
+            if(allProductsInStock) {
+                //orderRepository.save(order);
+                return "Order successfully placed";
+            }
+            else {
+                throw new IllegalArgumentException("product is not in stock. Please try again later!");
+            }
+        }finally {
+            inventoryServiceLookup.finish();
         }
-        boolean allProductsInStock = Arrays.stream(inventoryResponses).allMatch(inventoryResponse -> inventoryResponse.isInStock());
-        if(allProductsInStock) {
-            //orderRepository.save(order);
-            return "Order successfully placed";
-        }
-        else {
-            throw new IllegalArgumentException("product is not in stock. Please try again later!");
-        }
+
 
     }
 
